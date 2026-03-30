@@ -364,6 +364,28 @@
             if (window.innerWidth < 1024) document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
         };
 
+        window.addItemFromPopup = (name, emoji) => {
+            let foundItem = null;
+            for (const category of Object.values(allData)) {
+                foundItem = category.items.find(i => i.name === name);
+                if (foundItem) break;
+            }
+            if (foundItem) {
+                window.addItem(foundItem, emoji);
+                // Simple visual feedback
+                const btn = document.activeElement;
+                if (btn && btn.tagName === 'BUTTON') {
+                    const originalText = btn.innerText;
+                    btn.innerText = "✅ 추가됨";
+                    btn.style.background = "#27ae60";
+                    setTimeout(() => {
+                        btn.innerText = originalText;
+                        btn.style.background = "#d35400";
+                    }, 1000);
+                }
+            }
+        };
+
         // --- Render Lists ---
         const anchor = document.getElementById('lists-anchor');
         Object.entries(allData).forEach(([key, group]) => {
@@ -378,10 +400,15 @@
                             <b style="font-size:1rem; color:#1e293b;">${item.name}</b><br>
                             <small style="color:#64748b;">${item.cat}</small>
                             <hr style="margin:8px 0;border:0;border-top:1px solid #eee">
-                            <div style="font-size:0.85rem; line-height:1.5; color:#475569; margin-bottom:10px;">${item.desc}</div>
-                            <a href="https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:4px; padding:8px; background:#3498db; color:white; text-decoration:none; border-radius:6px; font-size:0.8rem; font-weight:700;">
-                                📍 구글 지도로 길찾기
-                            </a>
+                            <div style="font-size:0.85rem; line-height:1.5; color:#475569; margin-bottom:12px;">${item.desc}</div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <button onclick="window.addItemFromPopup('${item.name.replace(/'/g, "\\'")}', '${group.emoji}')" style="width:100%; padding:8px; background:var(--primary); color:white; border:none; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer;">
+                                    + 현재 선택된 Day에 추가
+                                </button>
+                                <a href="https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:4px; padding:8px; background:#3498db; color:white; text-decoration:none; border-radius:6px; font-size:0.8rem; font-weight:700;">
+                                    📍 구글 지도로 길찾기
+                                </a>
+                            </div>
                         </div>
                     `);
                 markers[item.name] = marker;
