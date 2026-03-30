@@ -294,18 +294,19 @@
 
             const dayColors = ['#d35400', '#3498db', '#27ae60', '#8e44ad', '#e74c3c', '#f1c40f'];
             
-            itinerary.forEach((day, idx) => {
+            const day = itinerary[activeDay];
+            if (day) {
                 const coords = day.filter(item => item.lat && item.lng).map(item => [item.lat, item.lng]);
                 if (coords.length > 1) {
                     const polyline = L.polyline(coords, {
-                        color: dayColors[idx % dayColors.length],
+                        color: dayColors[activeDay % dayColors.length],
                         weight: 4,
-                        opacity: 0.6,
+                        opacity: 0.8,
                         dashArray: '10, 10'
                     }).addTo(map);
                     polylines.push(polyline);
                 }
-            });
+            }
         }
 
         window.toggleRoutes = () => {
