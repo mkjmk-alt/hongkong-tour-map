@@ -31,9 +31,11 @@
         #map { border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 1; }
         
         .planner { background: white; border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow); }
-        .planner-header { padding: 16px; background: #fff; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .planner-header { padding: 16px; background: #fff; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         .planner-content { flex: 1; overflow-y: auto; padding: 16px; background: #f1f5f9; }
+        .btn-group { display: flex; gap: 6px; }
         .btn-add { background: var(--secondary); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.8rem; }
+        .btn-route { background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.8rem; }
         .btn-clear { width: 100%; padding: 10px; border: none; background: #fee2e2; color: #dc2626; font-weight: 700; cursor: pointer; }
 
         .day-box { background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden; }
@@ -84,7 +86,10 @@
             <div class="planner">
                 <div class="planner-header">
                     <h3>🗓️ 나의 일정</h3>
-                    <button class="btn-add" onclick="addDay()">+ 일수 추가</button>
+                    <div class="btn-group">
+                        <button class="btn-route" id="toggle-route" onclick="toggleRoutes()">경로 숨기기</button>
+                        <button class="btn-add" onclick="addDay()">+ 일수 추가</button>
+                    </div>
                 </div>
                 <div class="planner-content" id="planner-content"></div>
                 <button class="btn-clear" onclick="clearPlanner()">모든 일정 초기화</button>
@@ -98,6 +103,9 @@
     <script>
         // --- COMPLETE 150+ DATA ---
         const allData = {
+            stay: { title: "🏨 나의 숙소 & 호텔", color: "violet", emoji: "🏨", items: [
+                { name: "알렉산드라 호텔 (Alexandra)", lat: 22.2891, lng: 114.1924, loc: "포트리스힐", cat: "호텔", desc: "나의 여행 베이스캠프! 포트리스힐 역 인근에 위치한 고풍스러운 분위기의 호텔입니다." }
+            ]},
             tours: { title: "📸 필수 관광지 & 포토스팟 30선", color: "gold", emoji: "📸", items: [
                 { name: "홍콩 디즈니랜드", lat: 22.3130, lng: 114.0413, loc: "란타우 섬", cat: "테마파크", desc: "홍콩 여행의 필수 코스. 7개의 테마 랜드(투모로우랜드, 판타지랜드 등)에서 환상적인 캐릭터들과 어트랙션을 즐겨보세요. 특히 저녁에 펼쳐지는 '모먼터스' 야간 성 쇼는 놓치지 말아야 할 백미입니다." },
                 { name: "오션파크 홍콩", lat: 22.2460, lng: 114.1747, loc: "남구", cat: "테마파크", desc: "짜릿한 해안 롤러코스터와 아시아 최대 규모의 아쿠아리움, 그리고 귀여운 자이언트 판다를 한 번에 만날 수 있는 종합 엔터테인먼트 파크입니다." },
@@ -267,16 +275,44 @@
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }).addTo(map);
 
         const markers = {};
+        let polylines = [];
+        let showRoutes = true;
+
         const iconBase = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-';
         const getIcon = color => L.icon({ iconUrl: `${iconBase}${color}.png`, shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
-
-        L.marker([22.2891, 114.1924], { icon: getIcon('violet'), zIndexOffset: 1000 }).addTo(map).bindPopup("🏨 <b>알렉산드라 호텔</b><br>나의 베이스캠프").openPopup();
 
         // --- Logic ---
         let itinerary = JSON.parse(localStorage.getItem('hk_itinerary')) || [[]];
         let activeDay = 0;
 
         function save() { localStorage.setItem('hk_itinerary', JSON.stringify(itinerary)); }
+
+        function drawRoutes() {
+            polylines.forEach(p => map.removeLayer(p));
+            polylines = [];
+            if (!showRoutes) return;
+
+            const dayColors = ['#d35400', '#3498db', '#27ae60', '#8e44ad', '#e74c3c', '#f1c40f'];
+            
+            itinerary.forEach((day, idx) => {
+                const coords = day.filter(item => item.lat && item.lng).map(item => [item.lat, item.lng]);
+                if (coords.length > 1) {
+                    const polyline = L.polyline(coords, {
+                        color: dayColors[idx % dayColors.length],
+                        weight: 4,
+                        opacity: 0.6,
+                        dashArray: '10, 10'
+                    }).addTo(map);
+                    polylines.push(polyline);
+                }
+            });
+        }
+
+        window.toggleRoutes = () => {
+            showRoutes = !showRoutes;
+            document.getElementById('toggle-route').innerText = showRoutes ? "경로 숨기기" : "경로 보이기";
+            drawRoutes();
+        };
 
         function renderPlanner() {
             const container = document.getElementById('planner-content');
@@ -303,12 +339,24 @@
                     save(); renderPlanner();
                 }});
             });
+            drawRoutes();
         }
 
         window.addDay = () => { itinerary.push([]); activeDay = itinerary.length - 1; save(); renderPlanner(); };
         window.removeItem = (d, i) => { itinerary[d].splice(i, 1); save(); renderPlanner(); };
         window.clearPlanner = () => { if(confirm('모든 일정을 초기화할까요?')) { itinerary = [[]]; activeDay = 0; save(); renderPlanner(); }};
-        window.addItem = (item, emoji) => { itinerary[activeDay].push({ name: `${emoji} ${item.name}`, fullName: item.name }); save(); renderPlanner(); };
+        
+        window.addItem = (item, emoji) => { 
+            itinerary[activeDay].push({ 
+                name: `${emoji} ${item.name}`, 
+                fullName: item.name,
+                lat: item.lat,
+                lng: item.lng
+            }); 
+            save(); 
+            renderPlanner(); 
+        };
+
         window.focusLoc = name => { 
             const marker = markers[name];
             if (marker) { map.flyTo(marker.getLatLng(), 16); setTimeout(() => marker.openPopup(), 500); }
@@ -327,7 +375,7 @@
 
                 const card = document.createElement('div');
                 card.className = `card`;
-                card.style.borderLeft = `4px solid ${L.Icon.Default.prototype.options.color || group.color}`;
+                card.style.borderLeft = `4px solid ${group.color === 'violet' ? '#8e44ad' : group.color === 'gold' ? '#f1c40f' : group.color === 'orange' ? '#ff9800' : group.color === 'red' ? '#e74c3c' : group.color === 'blue' ? '#3498db' : '#27ae60'}`;
                 card.onclick = () => focusLoc(item.name);
                 card.innerHTML = `<div class="card-name">${item.name}</div><div class="card-loc">📍 ${item.loc}</div><div class="card-desc">${item.desc}</div><button class="btn-plus" onclick="event.stopPropagation();addItem(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${group.emoji}')">+ 추가</button>`;
                 grid.appendChild(card);
