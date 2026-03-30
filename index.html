@@ -370,7 +370,19 @@
             const grid = document.createElement('div'); grid.className = 'list-grid'; anchor.appendChild(grid);
             
             group.items.forEach(item => {
-                const marker = L.marker([item.lat, item.lng], { icon: getIcon(group.color) }).addTo(map).bindPopup(`<b>${item.name}</b><br><small>${item.cat}</small><hr style="margin:5px 0;border:0;border-top:1px solid #eee">${item.desc}`);
+                const marker = L.marker([item.lat, item.lng], { icon: getIcon(group.color) })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div style="width:200px">
+                            <b style="font-size:1rem; color:#1e293b;">${item.name}</b><br>
+                            <small style="color:#64748b;">${item.cat}</small>
+                            <hr style="margin:8px 0;border:0;border-top:1px solid #eee">
+                            <div style="font-size:0.85rem; line-height:1.5; color:#475569; margin-bottom:10px;">${item.desc}</div>
+                            <a href="https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:4px; padding:8px; background:#3498db; color:white; text-decoration:none; border-radius:6px; font-size:0.8rem; font-weight:700;">
+                                📍 구글 지도로 길찾기
+                            </a>
+                        </div>
+                    `);
                 markers[item.name] = marker;
 
                 const card = document.createElement('div');
