@@ -385,7 +385,16 @@
             let query = queryInput.value.trim();
             if (!query) return;
 
-            // Check if input is coordinates (e.g., "22.315, 114.170")
+            // 1. Check if input is a Google Maps URL (e.g., https://www.google.com/maps/place/.../@22.315,114.170,...)
+            const googleUrlMatch = query.match(/@([-+]?\d+\.\d+),([-+]?\d+\.\d+)/);
+            if (googleUrlMatch) {
+                const lat = parseFloat(googleUrlMatch[1]);
+                const lon = parseFloat(googleUrlMatch[2]);
+                showAddPopup(lat, lon, "구글 지도에서 가져온 위치");
+                return;
+            }
+
+            // 2. Check if input is direct coordinates (e.g., "22.315, 114.170")
             const coordMatch = query.match(/^([-+]?\d+\.?\d*)\s*,\s*([-+]?\d+\.?\d*)$/);
             if (coordMatch) {
                 const lat = parseFloat(coordMatch[1]);
@@ -408,7 +417,15 @@
 
                 resultsDiv.innerHTML = '';
                 if (data.length === 0) {
-                    resultsDiv.innerHTML = '<div class="search-result-item">결과가 없습니다. (좌표 입력 가능)</div>';
+                    resultsDiv.innerHTML = `
+                        <div class="search-result-item" style="color:#e74c3c; font-weight:700;">결과가 없습니다.</div>
+                        <div class="search-result-item" onclick="window.open('https://www.google.com/maps/search/${encodeURIComponent(query)}', '_blank')" style="background:#f0f9ff; color:#3182ce;">
+                            🔍 구글 지도에서 직접 찾기 (권장)
+                        </div>
+                        <div class="search-result-item" style="font-size:0.75rem; color:#718096; cursor:default;">
+                            * 구글 지도에서 찾은 뒤 주소(URL)를 복사해서 여기에 붙여넣으세요!
+                        </div>
+                    `;
                 } else {
                     data.forEach(result => {
                         const item = document.createElement('div');
