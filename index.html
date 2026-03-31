@@ -470,11 +470,18 @@
             alert(`'${name}'이(가) 일정에 추가되었습니다!`);
         };
 
-        // Map Click to Add
-        map.on('click', (e) => {
-            const lat = e.latlng.lat;
-            const lon = e.latlng.lng;
-            showAddPopup(lat, lon, "새로운 장소");
+        // Map Long Press (2s) to Add
+        let pressTimer;
+        map.on('mousedown', (e) => {
+            // Start timer on mouse down
+            pressTimer = setTimeout(() => {
+                showAddPopup(e.latlng.lat, e.latlng.lng, "새로운 장소");
+            }, 2000);
+        });
+
+        map.on('mouseup mousemove dragstart zoomstart', () => {
+            // Cancel timer if mouse is moved, released, or map is dragged/zoomed
+            clearTimeout(pressTimer);
         });
 
         // Add Enter key listener
