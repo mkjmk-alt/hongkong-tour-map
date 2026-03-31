@@ -69,6 +69,58 @@
         .card-desc { font-size: 0.85rem; color: #475569; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .btn-plus { position: absolute; top: 20px; right: 20px; background: var(--secondary); color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; }
 
+        /* Search Box UI */
+        .leaflet-custom-search {
+            background: white;
+            padding: 5px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 5px;
+            margin: 10px;
+            border: 1px solid var(--border);
+        }
+        .search-input {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            width: 200px;
+            outline: none;
+        }
+        .btn-search {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .search-results-list {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            border: 1px solid var(--border);
+        }
+        .search-result-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.85rem;
+        }
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-item:hover { background: #f8fafc; color: var(--primary); }
+
         @media (max-width: 1024px) {
             .main-layout { grid-template-columns: 1fr; height: auto; }
             #map { height: 400px; }
@@ -309,6 +361,77 @@
         const getIcon = color => L.icon({ iconUrl: `${iconBase}${color}.png`, shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
 
         L.marker([22.2891, 114.1924], { icon: getIcon('violet'), zIndexOffset: 1000 }).addTo(map).bindPopup("🏨 <b>알렉산드라 호텔</b><br>나의 베이스캠프").openPopup();
+
+        // --- Search Feature ---
+        const SearchControl = L.Control.extend({
+            onAdd: function() {
+                const div = L.DomUtil.create('div', 'leaflet-custom-search');
+                div.innerHTML = `
+                    <div style="position:relative;">
+                        <input type="text" id="map-search" class="search-input" placeholder="장소 검색 (예: 란콰이퐁)">
+                        <div id="search-results" class="search-results-list"></div>
+                    </div>
+                    <button class="btn-search" onclick="handleSearch()">검색</button>
+                `;
+                L.DomEvent.disableClickPropagation(div);
+                return div;
+            }
+        });
+        map.addControl(new SearchControl({ position: 'topleft' }));
+
+        window.handleSearch = async () => {
+            const query = document.getElementById('map-search').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.innerHTML = '<div class="search-result-item">검색 중...</div>';
+            resultsDiv.style.display = 'block';
+
+            try {
+                // Search focused on Hong Kong
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=113.8,22.5,114.4,22.1&bounded=1`);
+                const data = await response.json();
+
+                resultsDiv.innerHTML = '';
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = '<div class="search-result-item">결과가 없습니다.</div>';
+                } else {
+                    data.forEach(result => {
+                        const item = document.createElement('div');
+                        item.className = 'search-result-item';
+                        item.innerText = result.display_name.split(',').slice(0, 3).join(',');
+                        item.onclick = () => {
+                            const lat = parseFloat(result.lat);
+                            const lon = parseFloat(result.lon);
+                            const name = result.display_name.split(',')[0];
+                            
+                            const marker = L.marker([lat, lon], { icon: getIcon('violet') }).addTo(map);
+                            marker.bindPopup(`
+                                <div style="width:200px">
+                                    <b style="font-size:1rem; color:#1e293b;">${name}</b><br>
+                                    <hr style="margin:8px 0;border:0;border-top:1px solid #eee">
+                                    <button onclick="window.addItem({name:'${name.replace(/'/g, "\\'")}', lat:${lat}, lng:${lon}}, '📍')" style="width:100%; padding:8px; background:var(--primary); color:white; border:none; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer;">
+                                        + 현재 선택된 Day에 추가
+                                    </button>
+                                </div>
+                            `).openPopup();
+                            map.flyTo([lat, lon], 16);
+                            resultsDiv.style.display = 'none';
+                        };
+                        resultsDiv.appendChild(item);
+                    });
+                }
+            } catch (err) {
+                resultsDiv.innerHTML = '<div class="search-result-item">에러가 발생했습니다.</div>';
+            }
+        };
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.leaflet-custom-search')) {
+                document.getElementById('search-results').style.display = 'none';
+            }
+        });
 
         // --- Logic ---
         let itinerary = JSON.parse(localStorage.getItem('hk_itinerary')) || [[]];
