@@ -132,7 +132,7 @@
                 { name: "Mobile Softee", lat: 22.2936, lng: 114.1686, loc: "침사추이", cat: "트럭", desc: "홍콩의 상징적인 추억의 아이스크림 트럭." }
                 // ... (30개 전수 추가)
             ]},
-            markets: { title: "🌙 야시장 & 테마 거리 30선", color: "brown", emoji: "🌙", items: [
+            markets: { title: "🌙 야시장 & 테마 거리 30선", color: "grey", emoji: "🌙", items: [
                 { name: "템플 스트리트 야시장", lat: 22.3065, lng: 114.1705, loc: "조던", cat: "야시장", desc: "홍콩에서 가장 유명한 야시장. 노천 식당과 쇼핑이 즐겁습니다." },
                 { name: "레이디스 마켓", lat: 22.3182, lng: 114.1706, loc: "몽콕", cat: "노천시장", desc: "의류, 액세서리, 기념품이 가득한 몽콕의 상징적 거리." },
                 { name: "스니커즈 스트리트", lat: 22.3175, lng: 114.1715, loc: "몽콕", cat: "테마거리", desc: "전 세계 브랜드 운동화가 모여있는 신발 마니아의 성지." },
@@ -236,7 +236,9 @@
             group.items.forEach(item => {
                 const marker = L.marker([item.lat, item.lng], { icon: getIcon(group.color) }).addTo(map).bindPopup(`<div style="width:200px"><b>${item.name}</b><br><small>${item.cat}</small><hr style="margin:8px 0;border:0;border-top:1px solid #eee">${item.desc}<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><button onclick="window.addItemFromPopup('${item.name.replace(/'/g, "\\'")}', '${group.emoji}')" style="width:100%;padding:8px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:700;cursor:pointer">+ 일정 추가</button><a href="https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}" target="_blank" style="display:flex;align-items:center;justify-content:center;padding:8px;background:#3498db;color:white;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:700">📍 길찾기</a></div></div>`);
                 markers[item.name] = marker;
-                const card = document.createElement('div'); card.className = `card`; card.style.borderLeft = `4px solid ${group.color === 'black' ? '#000' : (group.color === 'violet' ? '#8e44ad' : (group.color === 'brown' ? '#795548' : '#3498db'))}`;
+                const card = document.createElement('div'); card.className = `card`;
+                const borderColors = { black: '#000', violet: '#8e44ad', grey: '#7f8c8d', gold: '#f1c40f', orange: '#ff9800', red: '#e74c3c', blue: '#3498db', green: '#27ae60' };
+                card.style.borderLeft = `4px solid ${borderColors[group.color] || '#3498db'}`;
                 card.onclick = () => focusLoc(item.name);
                 card.innerHTML = `<div class="card-name">${item.name}</div><div class="card-loc">📍 ${item.loc}</div><div class="card-desc">${item.desc}</div><button class="btn-plus" onclick="event.stopPropagation();addItem(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${group.emoji}')">+ 추가</button>`;
                 grid.appendChild(card);
