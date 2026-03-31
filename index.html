@@ -123,7 +123,7 @@
         // --- Supabase Config ---
         const SB_URL = 'https://fdiozkczrytxecfdzoal.supabase.co';
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkaW96a2N6cnl0eGVjZmR6b2FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4OTM0NTQsImV4cCI6MjA4OTQ2OTQ1NH0.FSGYMj4Jb1ZBteLXmIUUUJwg1bgLKrbl4zax9Iw-qMQ';
-        const supabase = supabase.createClient(SB_URL, SB_KEY);
+        const sbClient = supabase.createClient(SB_URL, SB_KEY);
         let syncId = localStorage.getItem('hk_sync_id') || '';
         let isSyncingFromRemote = false;
 
