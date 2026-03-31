@@ -126,6 +126,7 @@
         const sbClient = supabase.createClient(SB_URL, SB_KEY);
         let syncId = localStorage.getItem('hk_sync_id') || '';
         let isSyncingFromRemote = false;
+        let currentChannel = null;
 
         // --- COMPLETE 150+ DATA ---
         const allData = {
