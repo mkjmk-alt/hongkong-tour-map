@@ -385,12 +385,20 @@
             let query = queryInput.value.trim();
             if (!query) return;
 
+            // Check if input is coordinates (e.g., "22.315, 114.170")
+            const coordMatch = query.match(/^([-+]?\d+\.?\d*)\s*,\s*([-+]?\d+\.?\d*)$/);
+            if (coordMatch) {
+                const lat = parseFloat(coordMatch[1]);
+                const lon = parseFloat(coordMatch[2]);
+                showAddPopup(lat, lon, "직접 지정한 위치");
+                return;
+            }
+
             const resultsDiv = document.getElementById('search-results');
             resultsDiv.innerHTML = '<div class="search-result-item">검색 중...</div>';
             resultsDiv.style.display = 'block';
 
             try {
-                // Add "Hong Kong" to query if not present to improve results
                 const searchQuery = query.toLowerCase().includes('hong kong') || query.includes('홍콩') 
                     ? query 
                     : query + ' Hong Kong';
@@ -400,12 +408,11 @@
 
                 resultsDiv.innerHTML = '';
                 if (data.length === 0) {
-                    resultsDiv.innerHTML = '<div class="search-result-item">결과가 없습니다. (영문/한글 혼용 시도 권장)</div>';
+                    resultsDiv.innerHTML = '<div class="search-result-item">결과가 없습니다. (좌표 입력 가능)</div>';
                 } else {
                     data.forEach(result => {
                         const item = document.createElement('div');
                         item.className = 'search-result-item';
-                        // Clean up the display name
                         const displayName = result.display_name.split(',').slice(0, 4).join(',');
                         item.innerText = displayName;
                         
@@ -413,19 +420,7 @@
                             const lat = parseFloat(result.lat);
                             const lon = parseFloat(result.lon);
                             const name = result.display_name.split(',')[0];
-                            
-                            const marker = L.marker([lat, lon], { icon: getIcon('violet') }).addTo(map);
-                            marker.bindPopup(`
-                                <div style="width:200px">
-                                    <b style="font-size:1rem; color:#1e293b;">${name}</b><br>
-                                    <small style="color:#64748b;">${displayName}</small>
-                                    <hr style="margin:8px 0;border:0;border-top:1px solid #eee">
-                                    <button onclick="window.addItem({name:'${name.replace(/'/g, "\\'")}', lat:${lat}, lng:${lon}}, '📍')" style="width:100%; padding:8px; background:var(--primary); color:white; border:none; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer;">
-                                        + 현재 선택된 Day에 추가
-                                    </button>
-                                </div>
-                            `).openPopup();
-                            map.flyTo([lat, lon], 16);
+                            showAddPopup(lat, lon, name);
                             resultsDiv.style.display = 'none';
                         };
                         resultsDiv.appendChild(item);
@@ -435,6 +430,35 @@
                 resultsDiv.innerHTML = '<div class="search-result-item">에러가 발생했습니다.</div>';
             }
         };
+
+        // Helper to show "Add" popup at coordinates
+        function showAddPopup(lat, lon, defaultName) {
+            const marker = L.marker([lat, lon], { icon: getIcon('violet') }).addTo(map);
+            marker.bindPopup(`
+                <div style="width:200px">
+                    <input type="text" id="custom-name" value="${defaultName}" style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px; margin-bottom:8px; font-weight:700;">
+                    <hr style="margin:8px 0;border:0;border-top:1px solid #eee">
+                    <button onclick="addCustomLocation(${lat}, ${lon}, '📍')" style="width:100%; padding:8px; background:var(--primary); color:white; border:none; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer;">
+                        + 현재 선택된 Day에 추가
+                    </button>
+                </div>
+            `).openPopup();
+            map.flyTo([lat, lon], 16);
+        }
+
+        window.addCustomLocation = (lat, lon, emoji) => {
+            const name = document.getElementById('custom-name').value.trim() || "지정한 위치";
+            window.addItem({ name: name, lat: lat, lng: lon }, emoji);
+            map.closePopup();
+            alert(`'${name}'이(가) 일정에 추가되었습니다!`);
+        };
+
+        // Map Click to Add
+        map.on('click', (e) => {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
+            showAddPopup(lat, lon, "새로운 장소");
+        });
 
         // Add Enter key listener
         document.addEventListener('keydown', (e) => {
