@@ -318,10 +318,24 @@
         function renderPlanner() {
             const container = document.getElementById('planner-content');
             container.innerHTML = '';
+            
+            const startDate = new Date(2026, 3, 3); // 2026년 4월 3일 (월은 0부터 시작하므로 3이 4월)
+            const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+
             itinerary.forEach((day, idx) => {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + idx);
+                const dateStr = `${currentDate.getMonth() + 1}/${currentDate.getDate()}(${weekDays[currentDate.getDay()]})`;
+
                 const box = document.createElement('div');
                 box.className = `day-box ${idx === activeDay ? 'active' : ''}`;
-                box.innerHTML = `<div class="day-head ${idx === activeDay ? 'active' : ''}" onclick="activeDay=${idx};renderPlanner()">Day ${idx + 1} <span>${idx === activeDay ? '●' : ''}</span></div><div class="day-list" data-idx="${idx}"></div>`;
+                box.innerHTML = `
+                    <div class="day-head ${idx === activeDay ? 'active' : ''}" onclick="activeDay=${idx};renderPlanner()">
+                        <span>Day ${idx + 1} <small style="font-weight:normal; margin-left:5px; opacity:0.8;">${dateStr}</small></span> 
+                        <span>${idx === activeDay ? '●' : ''}</span>
+                    </div>
+                    <div class="day-list" data-idx="${idx}"></div>
+                `;
                 container.appendChild(box);
 
                 const list = box.querySelector('.day-list');
