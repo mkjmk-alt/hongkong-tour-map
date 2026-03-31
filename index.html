@@ -6,6 +6,7 @@
     <title>홍콩 여행 대동여지도 (150선 + 플래너)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary: #d35400;
@@ -23,7 +24,17 @@
         h1 { color: var(--primary); margin: 0; font-size: 2rem; letter-spacing: -0.025em; }
         .subtitle { color: #64748b; margin-top: 8px; font-size: 1rem; }
 
-        .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-bottom: 30px; }
+        /* Sync UI */
+        .sync-banner { background: #fff; border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 30px; display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow); }
+        .sync-input { padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1rem; width: 180px; font-weight: 700; text-align: center; outline: none; transition: border-color 0.2s; }
+        .sync-input:focus { border-color: #3182ce; }
+        .btn-sync { background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; }
+        .btn-sync:hover { background: #2b6cb0; }
+        .sync-status { font-size: 0.85rem; font-weight: 700; color: #4a5568; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; background: #cbd5e1; }
+        .status-dot.online { background: #48bb78; box-shadow: 0 0 8px #48bb78; }
+
+        .legend { display: flex; justify: center; flex-wrap: wrap; gap: 10px; margin-bottom: 30px; }
         .legend-item { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: white; border-radius: 99px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); box-shadow: var(--shadow); }
         .dot { width: 10px; height: 10px; border-radius: 50%; }
 
@@ -72,6 +83,14 @@
     </header>
 
     <div class="container">
+        <!-- Sync UI -->
+        <div class="sync-banner">
+            <span class="sync-status"><span id="status-dot" class="status-dot"></span> 동기화 코드:</span>
+            <input type="text" id="sync-code" class="sync-input" placeholder="예: hk1234" maxlength="10">
+            <button class="btn-sync" onclick="startSync()">연결 & 불러오기</button>
+            <span id="sync-msg" style="font-size:0.8rem; color:#718096;">코드를 입력하면 친구와 일정이 공유됩니다.</span>
+        </div>
+
         <div class="legend">
             <div class="legend-item"><div class="dot" style="background:#8e44ad"></div>🏨 숙소</div>
             <div class="legend-item"><div class="dot" style="background:#f1c40f"></div>📸 명소</div>
@@ -101,6 +120,13 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
+        // --- Supabase Config ---
+        const SB_URL = 'https://fdiozkczrytxecfdzoal.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkaW96a2N6cnl0eGVjZmR6b2FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4OTM0NTQsImV4cCI6MjA4OTQ2OTQ1NH0.FSGYMj4Jb1ZBteLXmIUUUJwg1bgLKrbl4zax9Iw-qMQ';
+        const supabase = supabase.createClient(SB_URL, SB_KEY);
+        let syncId = localStorage.getItem('hk_sync_id') || '';
+        let isSyncingFromRemote = false;
+
         // --- COMPLETE 150+ DATA ---
         const allData = {
             stay: { title: "🏨 나의 숙소 & 호텔", color: "violet", emoji: "🏨", items: [
@@ -237,35 +263,35 @@
             ]},
             noodles: { title: "🥢 궁극의 누들 전문점 30선", color: "green", emoji: "🥢", items: [
                 { name: "막스 누들 (Mak's Noodle)", lat: 22.2825, lng: 114.1545, loc: "센트럴", cat: "완탕면", desc: "3대째 이어온 완탕면의 정석. 꼬들꼬들한 에그 누들이 일품입니다." },
-                { name: "침차이키 (Tsim Chai Kee)", lat: 22.2828, lng: 114.1540, loc: "센트럴", cat: "대왕 완탕면", desc: "큼직한 새우 완탕과 소고기 토핑이 푸짐한 가성비 미슐랭 맛집입니다." },
-                { name: "카우키 (Kau Kee)", lat: 22.2840, lng: 114.1520, loc: "센트럴", cat: "소고기 국수", desc: "양조위 단골집으로 유명한 곳. 깊고 진한 카레 소고기 국수를 추천합니다." },
-                { name: "시스터 와 (Sister Wah)", lat: 22.2820, lng: 114.1920, loc: "틴하우", cat: "소고기 맑은 국수", desc: "맑고 개운한 국물에 부드러운 소고기 양지가 듬뿍 들어간 미슐랭 명점입니다." },
-                { name: "호흥키 (Ho Hung Kee)", lat: 22.2800, lng: 114.1830, loc: "코즈웨이베이", cat: "완탕 & 호펀", desc: "정갈한 완탕면과 불맛 가득한 소고기 볶음면이 일품인 미슐랭 스타 식당입니다." },
+                { name: "침차이키 (Tsim Chai Kee)", lat: 22.2828, lng: 114.1540, loc: "센트럴", cat: "대왕 완탕면", desc: "미슐랭 빕구르망. 탁구공만한 커다란 새우 완탕과 푸짐한 양이 매력적인 가성비 맛집입니다." },
+                { name: "카우키 (Kau Kee)", lat: 22.2840, lng: 114.1520, loc: "센트럴", cat: "소고기 국수", desc: "양조위 단골집으로 유명한 곳. 깊고 진한 양지 국수와 중독성 있는 카레 국수를 추천합니다." },
+                { name: "시스터 와 (Sister Wah)", lat: 22.2820, lng: 114.1920, loc: "틴하우", cat: "소고기 맑은 국수", desc: "미슐랭 빕구르망 명점. 큼직한 무와 함께 고아낸 맑고 시원한 국물 맛이 일품입니다." },
+                { name: "호흥키 (Ho Hung Kee)", lat: 22.2800, lng: 114.1830, loc: "코즈웨이베이", cat: "완탕 & 호펀", desc: "미슐랭 1스타. 정갈한 완탕면과 불맛 가득한 소고기 볶음 쌀국수를 쾌적하게 즐길 수 있습니다." },
                 { name: "라우숨키 누들", lat: 22.3310, lng: 114.1620, loc: "삼수이포", cat: "새우알 비빔면", desc: "대나무로 반죽한 전통 면발에 고소한 새우알을 뿌린 별미입니다." },
                 { name: "콴키 뱀부 누들", lat: 22.3385, lng: 114.1575, loc: "청샤완", cat: "대나무 완탕면", desc: "전통 방식 죽승면 제조를 고수하는 노포로 향긋한 면발이 특징입니다." },
-                { name: "치키 (Chee Kei)", lat: 22.2982, lng: 114.1718, loc: "침사추이", cat: "게알 완탕면", desc: "고소한 게알 비빔면이 맛있는 깔끔하고 대중적인 국수 체인입니다." },
-                { name: "호토타이", lat: 22.4440, lng: 114.0250, loc: "윈롱", cat: "미슐랭 완탕면", desc: "윈롱 지역을 대표하는 70년 전통의 미슐랭 빕구르망 완탕면 집입니다." },
-                { name: "막만키 누들 숍", lat: 22.3045, lng: 114.1710, loc: "조던", cat: "새우알 비빔면", desc: "새우로만 채운 탱글한 완탕과 짭짤한 새우알 비빔면의 내공을 느껴보세요." },
-                { name: "남키 누들", lat: 22.2780, lng: 114.1770, loc: "전역", cat: "스프링롤 쌀국수", desc: "시큼 매콤한 국물에 쫄깃한 스프링롤을 얹은 현지인 소울 쌀국수입니다." },
-                { name: "만키 카트 누들", lat: 22.3320, lng: 114.1630, loc: "삼수이포", cat: "수레국수", desc: "내가 원하는 토핑을 골라 만드는 정통 카트 누들 미슐랭 명점입니다." },
-                { name: "윙키 누들", lat: 22.2795, lng: 114.1840, loc: "코즈웨이베이", cat: "수레국수", desc: "닭 날개 끝부분과 선지가 들어간 진한 간장 육수 맛집입니다." },
-                { name: "블록 18 도기 누들", lat: 22.3040, lng: 114.1715, loc: "조던", cat: "수제비 국수", desc: "짧고 통통한 면발의 홍콩식 수제비로 70년대 길거리 추억의 맛입니다." },
+                { name: "치키 (Chee Kei)", lat: 22.2982, lng: 114.1718, loc: "침사추이", cat: "게알 완탕면", desc: "게살과 게알을 듬뿍 얹은 별미 비빔면 추천. 깔끔한 매장과 다양한 세트 구성이 장점입니다." },
+                { name: "호토타이", lat: 22.4440, lng: 114.0250, loc: "윈롱", cat: "미슐랭 완탕면", desc: "1946년부터 이어온 윈롱의 자존심. 얇고 바삭한 면발과 투명한 완탕 피가 특징인 노포입니다." },
+                { name: "막만키 누들 숍", lat: 22.3045, lng: 114.1710, loc: "조던", cat: "새우알 비빔면", desc: "새우로만 채운 탱글한 완탕과 짭짤한 새우알 비빔면의 조화. 늘 붐비는 60년 내공의 명점입니다." },
+                { name: "남키 누들", lat: 22.2780, lng: 114.1770, loc: "홍콩 전역", cat: "스프링롤 쌀국수", desc: "홍콩 국민 쌀국수 체인. 시큼 매콤한 국물에 쫄깃한 스프링롤을 적셔 먹는 맛이 중독적입니다." },
+                { name: "만키 카트 누들", lat: 22.3320, lng: 114.1630, loc: "삼수이포", cat: "수레국수", desc: "미슐랭 가이드 등재 카트 누들. 원하는 토핑을 골라 나만의 국수를 만드는 로컬 체험의 백미입니다." },
+                { name: "윙키 누들", lat: 22.2795, lng: 114.1840, loc: "코즈웨이베이", cat: "수레국수", desc: "진하고 짭조름한 간장 육수 맛집. 닭 날개 끝부분과 선지 토핑이 현지인들의 추천 메뉴입니다." },
+                { name: "블록 18 도기 누들", lat: 22.3040, lng: 114.1715, loc: "조던", cat: "수제비 국수", desc: "70년대 길거리 추억의 맛. 짧고 통통한 면발의 홍콩식 수제비와 구수한 육수가 특징입니다." },
                 { name: "와이키 누들 카페", lat: 22.3330, lng: 114.1610, loc: "삼수이포", cat: "돼지간 라면", desc: "신선한 돼지 간 하나로 홍콩을 평정한 비린내 없는 고소한 맛집입니다." },
-                { name: "싱흥유엔", lat: 22.2842, lng: 114.1525, loc: "센트럴", cat: "토마토 라면", desc: "노천 다이파이동에서 즐기는 새콤달콤 이색적인 토마토 라면입니다." },
-                { name: "선키 (Sun Kee)", lat: 22.3005, lng: 114.1745, loc: "침사추이", cat: "치즈 라면", desc: "꾸덕한 치즈 소스에 돼지목살 토핑을 얹은 중독성 강한 퓨전 라면입니다." },
-                { name: "스타 카페", lat: 22.2980, lng: 114.1735, loc: "침사추이", cat: "토마토 라면", desc: "낡은 멘션 지하의 빈티지한 공간에서 맛보는 진한 토마토 라면입니다." },
-                { name: "에이트 트레저", lat: 22.2810, lng: 114.1930, loc: "틴하우", cat: "한방 소고기면", desc: "8가지 한약재로 고아낸 보양식 같은 깊은 국물 맛의 국수입니다." },
-                { name: "잉키 누들 숍", lat: 22.2865, lng: 114.1410, loc: "사이잉푼", cat: "수레국수", desc: "깔끔하고 정갈한 국물 맛으로 유명한 지역 주민 추천 명점입니다." },
-                { name: "육킨 패스트푸드", lat: 22.2755, lng: 114.1735, loc: "완차이", cat: "카트 누들", desc: "완차이 직장인들의 점심을 책임지는 가성비 최고의 수레국수 집입니다." },
-                { name: "핑키 (Ping Kee)", lat: 22.4430, lng: 114.1640, loc: "타이포", cat: "시장통 수레국수", desc: "재래시장 내에서 땀 흘리며 먹는 가장 홍콩스러운 수레국수 체험입니다." },
-                { name: "굿호프 누들", lat: 22.3185, lng: 114.1710, loc: "몽콕", cat: "죽승면(완탕)", desc: "꼬들꼬들한 대나무 반죽 면발의 식감이 살아있는 전통 완탕면 명가입니다." },
-                { name: "초이 우 코이", lat: 22.2485, lng: 114.1520, loc: "애버딘", cat: "해산물 쌀국수", desc: "신선한 수제 피쉬볼과 해산물이 들어간 개운한 바닷가 국수입니다." },
-                { name: "윙와 누들 숍", lat: 22.2760, lng: 114.1725, loc: "완차이", cat: "죽승 완탕면", desc: "70년 가까이 완차이를 지켜온 얇지만 힘 있는 면발의 노포입니다." },
-                { name: "웡치키", lat: 22.2805, lng: 114.1840, loc: "코즈웨이베이", cat: "마카오식 완탕면", desc: "마카오 세나도 광장의 전설적인 완탕면을 홍콩에서 만나보세요." },
-                { name: "키키 누들 (KiKi)", lat: 22.2845, lng: 114.1585, loc: "센트럴 IFC", cat: "대만식 비빔면", desc: "쫄깃한 수제 면발과 파 향 가득한 소스로 MZ세대를 사로잡은 곳입니다." },
-                { name: "명장 카트누들", lat: 22.3315, lng: 114.1615, loc: "삼수이포", cat: "카트 누들", desc: "매콤한 카레 오징어와 곱창 토핑이 유명한 역동적인 식당입니다." },
-                { name: "푸이키 누들", lat: 22.2825, lng: 114.1915, loc: "틴하우", cat: "소고기면", desc: "동네 주민들이 사랑하는 숨은 현지인 소고기 국수 맛집입니다." },
-                { name: "디릴리셔스 푸드", lat: 22.3245, lng: 114.1685, loc: "프린스 에드워드", cat: "길거리 국수", desc: "강렬한 감칠맛의 길거리 곱창 국수가 일품인 로컬 맛집입니다." }
+                { name: "싱흥유엔 (Sing Heung Yuen)", lat: 22.2842, lng: 114.1525, loc: "센트럴", cat: "토마토 라면", desc: "센트럴 마지막 다이파이동. 새콤달콤 토마토 라면과 바삭한 번으로 즐기는 홍콩의 낭만." },
+                { name: "선키 (Sun Kee)", lat: 22.3005, lng: 114.1745, loc: "침사추이", cat: "치즈 라면", desc: "꾸덕한 치즈 소스에 돼지목살 토핑을 얹은 마성의 퓨전 라면. 젊은 층 취향 저격 명소입니다." },
+                { name: "스타 카페", lat: 22.2980, lng: 114.1735, loc: "침사추이", cat: "토마토 라면", desc: "낡은 멘션 지하 숨겨진 빈티지 핫플. 홍콩 영화 속 같은 분위기에서 진한 토마토 라면을 즐기세요." },
+                { name: "에이트 트레저", lat: 22.2810, lng: 114.1930, loc: "틴하우", cat: "한방 소고기면", desc: "8가지 한약재를 넣은 건강한 보양 국수. 부드러운 아롱사태와 깊은 한방 국물이 일품입니다." },
+                { name: "잉키 누들 숍", lat: 22.2865, lng: 114.1410, loc: "사이잉푼", cat: "수레국수", desc: "정갈하고 깔끔한 국물 맛의 수레국수 명점. 매일 직접 준비하는 신선한 토핑들이 훌륭합니다." },
+                { name: "육킨 패스트푸드", lat: 22.2755, lng: 114.1735, loc: "완차이", cat: "카트 누들", desc: "가성비 최고의 신속 배달 급 카트 누들. 바쁜 로컬들의 에너지를 느끼며 먹는 푸짐한 한 끼." },
+                { name: "핑키 (Ping Kee)", lat: 22.4430, lng: 114.1640, loc: "타이포", cat: "시장통 수레국수", desc: "재래시장 내 푸드 센터의 소박한 명점. 시끌벅적한 시장 인심과 내 취향 국수의 재미." },
+                { name: "굿호프 누들", lat: 22.3185, lng: 114.1710, loc: "몽콕", cat: "죽승면(완탕)", desc: "몽콕 번화가 속 대나무 반죽 전통 완탕면 명가. 꼬들꼬들한 면발 식감이 극대화된 곳입니다." },
+                { name: "초이 우 코이", lat: 22.2485, lng: 114.1520, loc: "애버딘", cat: "해산물 쌀국수", desc: "신선한 수제 피쉬볼과 해산물이 들어간 개운한 국수. 바닷가 마을의 여유를 느끼기 좋습니다." },
+                { name: "윙와 누들 숍", lat: 22.2760, lng: 114.1725, loc: "완차이", cat: "죽승 완탕면", desc: "70년 전통 완탕면. 직접 만든 절임 채소와 함께 즐기는 힘 있는 면발이 정겨운 노포입니다." },
+                { name: "웡치키 (Wong Chi Kei)", lat: 22.2805, lng: 114.1840, loc: "코즈웨이베이", cat: "마카오식 완탕면", desc: "마카오 세나도 광장 명가의 분점. 진한 새우 향 육수와 바삭한 초우면이 특히 맛있습니다." },
+                { name: "키키 누들 (KiKi)", lat: 22.2845, lng: 114.1585, loc: "센트럴 IFC", cat: "대만식 비빔면", desc: "쫄깃한 햇볕 건조 수제 면발로 유명한 곳. 깔끔한 IFC몰에서 즐기는 세련된 비빔면입니다." },
+                { name: "명장 카트누들", lat: 22.3315, lng: 114.1615, loc: "삼수이포", cat: "카트 누들", desc: "매콤하고 강렬한 카레 오징어와 곱창 토핑 추천. 홍콩 서민들의 역동적인 미식 풍경입니다." },
+                { name: "푸이키 누들", lat: 22.2825, lng: 114.1915, loc: "틴하우", cat: "소고기면", desc: "틴하우 동네 주민들의 숨은 지지 명점. 자극적이지 않고 깊은 여운의 소고기 육수가 훌륭합니다." },
+                { name: "디릴리셔스 푸드", lat: 22.3245, lng: 114.1685, loc: "프린스 에드워드", cat: "길거리 국수", desc: "강렬한 감칠맛의 길거리 곱창 국수 정석. 불편함조차 여행의 재미로 느껴지는 로컬 맛집입니다." }
             ]}
         };
 
@@ -281,11 +307,77 @@
         const iconBase = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-';
         const getIcon = color => L.icon({ iconUrl: `${iconBase}${color}.png`, shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
 
+        L.marker([22.2891, 114.1924], { icon: getIcon('violet'), zIndexOffset: 1000 }).addTo(map).bindPopup("🏨 <b>알렉산드라 호텔</b><br>나의 베이스캠프").openPopup();
+
         // --- Logic ---
         let itinerary = JSON.parse(localStorage.getItem('hk_itinerary')) || [[]];
         let activeDay = 0;
 
-        function save() { localStorage.setItem('hk_itinerary', JSON.stringify(itinerary)); }
+        function save() { 
+            localStorage.setItem('hk_itinerary', JSON.stringify(itinerary)); 
+            pushToSupabase();
+        }
+
+        async function pushToSupabase() {
+            if (!syncId) return;
+            try {
+                const { error } = await supabase
+                    .from('itineraries')
+                    .upsert({ id: syncId, data: itinerary, updated_at: new Date() });
+                if (error) throw error;
+                document.getElementById('status-dot').classList.add('online');
+            } catch (err) {
+                console.error('Supabase Push Error:', err);
+            }
+        }
+
+        async function startSync() {
+            const codeInput = document.getElementById('sync-code');
+            const code = codeInput.value.trim().toLowerCase();
+            if (!code) { alert('코드를 입력해주세요!'); return; }
+            
+            syncId = code;
+            localStorage.setItem('hk_sync_id', syncId);
+            
+            document.getElementById('sync-msg').innerText = "데이터를 불러오는 중...";
+            
+            try {
+                const { data, error } = await supabase
+                    .from('itineraries')
+                    .select('data')
+                    .eq('id', syncId)
+                    .single();
+                
+                if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found"
+                
+                if (data && data.data) {
+                    if (confirm(`'${syncId}' 코드의 기존 데이터를 불러올까요? 현재 작성 중인 내용은 사라집니다.`)) {
+                        itinerary = data.data;
+                        renderPlanner();
+                    }
+                } else {
+                    alert(`'${syncId}' 코드로 새로운 방을 생성합니다. 이제 이 코드를 친구에게 공유하세요!`);
+                    pushToSupabase();
+                }
+                
+                document.getElementById('sync-msg').innerText = "실시간 동기화 활성화됨!";
+                document.getElementById('status-dot').classList.add('online');
+                
+                // Real-time subscription
+                supabase
+                    .channel('itinerary_changes')
+                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'itineraries', filter: `id=eq.${syncId}` }, payload => {
+                        if (!isSyncingFromRemote) {
+                            itinerary = payload.new.data;
+                            renderPlanner();
+                        }
+                    })
+                    .subscribe();
+
+            } catch (err) {
+                alert('연결 실패: ' + err.message);
+            }
+        }
 
         function drawRoutes() {
             polylines.forEach(p => map.removeLayer(p));
@@ -316,10 +408,11 @@
         };
 
         function renderPlanner() {
+            isSyncingFromRemote = true;
             const container = document.getElementById('planner-content');
             container.innerHTML = '';
             
-            const startDate = new Date(2026, 3, 3); // 2026년 4월 3일 (월은 0부터 시작하므로 3이 4월)
+            const startDate = new Date(2026, 3, 3);
             const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
             itinerary.forEach((day, idx) => {
@@ -355,6 +448,7 @@
                 }});
             });
             drawRoutes();
+            isSyncingFromRemote = false;
         }
 
         window.addDay = () => { itinerary.push([]); activeDay = itinerary.length - 1; save(); renderPlanner(); };
@@ -386,7 +480,6 @@
             }
             if (foundItem) {
                 window.addItem(foundItem, emoji);
-                // Simple visual feedback
                 const btn = document.activeElement;
                 if (btn && btn.tagName === 'BUTTON') {
                     const originalText = btn.innerText;
@@ -435,6 +528,12 @@
                 grid.appendChild(card);
             });
         });
+
+        // Auto-fill sync code if exists
+        if (syncId) {
+            document.getElementById('sync-code').value = syncId;
+            startSync();
+        }
 
         renderPlanner();
     </script>
