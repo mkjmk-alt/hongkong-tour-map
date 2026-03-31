@@ -321,7 +321,7 @@
         async function pushToSupabase() {
             if (!syncId) return;
             try {
-                const { error } = await supabase
+                const { error } = await sbClient
                     .from('itineraries')
                     .upsert({ id: syncId, data: itinerary, updated_at: new Date() });
                 if (error) throw error;
