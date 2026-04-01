@@ -20,7 +20,8 @@
         .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; background: #cbd5e1; }
         .status-dot.online { background: #48bb78; box-shadow: 0 0 8px #48bb78; }
         .legend { display: flex; justify: center; flex-wrap: wrap; gap: 10px; margin-bottom: 30px; }
-        .legend-item { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: white; border-radius: 99px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .legend-item { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: white; border-radius: 99px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); box-shadow: var(--shadow); cursor: pointer; transition: all 0.2s; }
+        .legend-item:hover { background: #f1f5f9; transform: translateY(-2px); }
         .dot { width: 10px; height: 10px; border-radius: 50%; }
         .main-layout { display: grid; grid-template-columns: 1fr 360px; gap: 24px; height: 700px; margin-bottom: 50px; }
         #map { border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 1; }
@@ -66,16 +67,16 @@
             <button class="btn-sync" onclick="startSync()">연결 & 불러오기</button>
         </div>
         <div class="legend">
-            <div class="legend-item"><div class="dot" style="background:#8e44ad"></div>🏨 숙소</div>
-            <div class="legend-item"><div class="dot" style="background:#f1c40f"></div>📸 명소</div>
-            <div class="legend-item"><div class="dot" style="background:#ff9800"></div>🥚 타르트</div>
-            <div class="legend-item"><div class="dot" style="background:#e74c3c"></div>🥟 맛집</div>
-            <div class="legend-item"><div class="dot" style="background:#3498db"></div>🇰🇷 핫플</div>
-            <div class="legend-item"><div class="dot" style="background:#27ae60"></div>🥢 누들</div>
-            <div class="legend-item"><div class="dot" style="background:#000000"></div>🍦 젤라또</div>
-            <div class="legend-item"><div class="dot" style="background:#7f8c8d"></div>🌙 야시장</div>
-            <div class="legend-item"><div class="dot" style="background:#f1c40f"></div>🇲🇴 마카오 명소</div>
-            <div class="legend-item"><div class="dot" style="background:#8e44ad"></div>🍲 마카오 맛집</div>
+            <div class="legend-item" onclick="scrollToSection('stay')"><div class="dot" style="background:#8e44ad"></div>🏨 숙소</div>
+            <div class="legend-item" onclick="scrollToSection('tours')"><div class="dot" style="background:#f1c40f"></div>📸 명소</div>
+            <div class="legend-item" onclick="scrollToSection('tarts')"><div class="dot" style="background:#ff9800"></div>🥚 타르트</div>
+            <div class="legend-item" onclick="scrollToSection('foods')"><div class="dot" style="background:#e74c3c"></div>🥟 맛집</div>
+            <div class="legend-item" onclick="scrollToSection('koreans')"><div class="dot" style="background:#3498db"></div>🇰🇷 핫플</div>
+            <div class="legend-item" onclick="scrollToSection('noodles')"><div class="dot" style="background:#27ae60"></div>🥢 누들</div>
+            <div class="legend-item" onclick="scrollToSection('gelato')"><div class="dot" style="background:#000000"></div>🍦 젤라또</div>
+            <div class="legend-item" onclick="scrollToSection('markets')"><div class="dot" style="background:#7f8c8d"></div>🌙 야시장</div>
+            <div class="legend-item" onclick="scrollToSection('macau_tours')"><div class="dot" style="background:#f1c40f"></div>🇲🇴 마카오 명소</div>
+            <div class="legend-item" onclick="scrollToSection('macau_foods')"><div class="dot" style="background:#8e44ad"></div>🍲 마카오 맛집</div>
         </div>
         <div class="main-layout">
             <div id="map"></div>
@@ -475,9 +476,16 @@
         window.focusLoc = name => { const m = markers[name]; if (m) { map.flyTo(m.getLatLng(), 16); setTimeout(() => m.openPopup(), 500); } };
         window.addItemFromPopup = (name, emoji) => { let item = null; for (const cat of Object.values(allData)) { item = cat.items.find(i => i.name === name); if (item) break; } if (item) window.addItem(item, emoji); };
 
+        window.scrollToSection = (key) => {
+            const section = document.getElementById(`section-${key}`);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
+
         const anchor = document.getElementById('lists-anchor');
         Object.entries(allData).forEach(([key, group]) => {
-            const h2 = document.createElement('h2'); h2.className = 'section-title'; h2.innerText = group.title; anchor.appendChild(h2);
+            const h2 = document.createElement('h2'); h2.id = `section-${key}`; h2.className = 'section-title'; h2.innerText = group.title; anchor.appendChild(h2);
             const grid = document.createElement('div'); grid.className = 'list-grid'; anchor.appendChild(grid);
             group.items.forEach(item => {
                 const marker = L.marker([item.lat, item.lng], { icon: getIcon(group.color) }).addTo(map).bindPopup(`<div style="width:200px"><b>${item.name}</b><br><small>${item.cat}</small><hr style="margin:8px 0;border:0;border-top:1px solid #eee">${item.desc}<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><button onclick="window.addItemFromPopup('${item.name.replace(/'/g, "\\'")}', '${group.emoji}')" style="width:100%;padding:8px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:700;cursor:pointer">+ 일정 추가</button><a href="https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}" target="_blank" style="display:flex;align-items:center;justify-content:center;padding:8px;background:#3498db;color:white;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:700">📍 길찾기</a></div></div>`);
