@@ -43,9 +43,12 @@
         .card { background: white; padding: 20px; border-radius: 16px; border: 1px solid var(--border); position: relative; transition: transform 0.2s; cursor: pointer; display: flex; flex-direction: column; }
         .card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
         .card-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; padding-right: 70px; }
-        .card-loc { font-size: 0.85rem; color: #64748b; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+        .card-loc { font-size: 0.85rem; color: #64748b; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
         .card-desc { font-size: 0.85rem; color: #475569; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .btn-plus { position: absolute; top: 20px; right: 20px; background: var(--secondary); color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; }
+        
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; }
+        .badge.michelin { background: #e74c3c; color: white; border: 1px solid #c0392b; }
         .leaflet-custom-search { background: white; padding: 5px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; gap: 5px; margin: 10px; border: 1px solid var(--border); }
         .search-input { border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; width: 200px; outline: none; }
         .btn-search { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.85rem; }
@@ -488,13 +491,20 @@
             const h2 = document.createElement('h2'); h2.id = `section-${key}`; h2.className = 'section-title'; h2.innerText = group.title; anchor.appendChild(h2);
             const grid = document.createElement('div'); grid.className = 'list-grid'; anchor.appendChild(grid);
             group.items.forEach(item => {
-                const marker = L.marker([item.lat, item.lng], { icon: getIcon(group.color) }).addTo(map).bindPopup(`<div style="width:200px"><b>${item.name}</b><br><small>${item.cat}</small><hr style="margin:8px 0;border:0;border-top:1px solid #eee">${item.desc}<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><button onclick="window.addItemFromPopup('${item.name.replace(/'/g, "\\'")}', '${group.emoji}')" style="width:100%;padding:8px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:700;cursor:pointer">+ 일정 추가</button><a href="https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}" target="_blank" style="display:flex;align-items:center;justify-content:center;padding:8px;background:#3498db;color:white;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:700">📍 길찾기</a></div></div>`);
+                let michelinBadge = '';
+                if (item.desc.includes('미슐랭 3스타')) michelinBadge = '<span class="badge michelin" title="미슐랭 3스타">🌟🌟🌟 3스타</span>';
+                else if (item.desc.includes('미슐랭 2스타')) michelinBadge = '<span class="badge michelin" title="미슐랭 2스타">🌟🌟 2스타</span>';
+                else if (item.desc.includes('미슐랭 1스타') || item.desc.includes('미슐랭 스타') || item.desc.includes('미슐랭 별')) michelinBadge = '<span class="badge michelin" title="미슐랭 1스타">🌟 1스타</span>';
+                else if (item.desc.includes('미슐랭 빕구르망') || item.desc.includes('빕구르망')) michelinBadge = '<span class="badge michelin" title="미슐랭 빕구르망">😋 빕구르망</span>';
+                else if (item.desc.includes('미슐랭')) michelinBadge = '<span class="badge michelin" title="미슐랭 가이드 추천">🍽️ 가이드</span>';
+
+                const marker = L.marker([item.lat, item.lng], { icon: getIcon(group.color) }).addTo(map).bindPopup(`<div style="width:200px"><b>${item.name}</b><br><small>${item.cat}</small>${michelinBadge ? '<br>' + michelinBadge : ''}<hr style="margin:8px 0;border:0;border-top:1px solid #eee">${item.desc}<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><button onclick="window.addItemFromPopup('${item.name.replace(/'/g, "\\'")}', '${group.emoji}')" style="width:100%;padding:8px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:700;cursor:pointer">+ 일정 추가</button><a href="https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}" target="_blank" style="display:flex;align-items:center;justify-content:center;padding:8px;background:#3498db;color:white;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:700">📍 길찾기</a></div></div>`);
                 markers[item.name] = marker;
                 const card = document.createElement('div'); card.className = `card`;
                 const borderColors = { black: '#000', violet: '#8e44ad', grey: '#7f8c8d', gold: '#f1c40f', orange: '#ff9800', red: '#e74c3c', blue: '#3498db', green: '#27ae60' };
                 card.style.borderLeft = `4px solid ${borderColors[group.color] || '#3498db'}`;
                 card.onclick = () => focusLoc(item.name);
-                card.innerHTML = `<div class="card-name">${item.name}</div><div class="card-loc">📍 ${item.loc}</div><div class="card-desc">${item.desc}</div><button class="btn-plus" onclick="event.stopPropagation();addItem(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${group.emoji}')">+ 추가</button>`;
+                card.innerHTML = `<div class="card-name">${item.name}</div><div class="card-loc">📍 ${item.loc} ${michelinBadge}</div><div class="card-desc">${item.desc}</div><button class="btn-plus" onclick="event.stopPropagation();addItem(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${group.emoji}')">+ 추가</button>`;
                 grid.appendChild(card);
             });
         });
